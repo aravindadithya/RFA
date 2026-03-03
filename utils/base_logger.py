@@ -55,6 +55,7 @@ class BaseLogger:
             "Test Confusion Matrix",
             "Test Predictions", "fixed_val_images"
         ]
+        wandb.define_metric("adjacent_balance/*", step_metric="epoch")
         for metric in metrics_to_sync:
             wandb.define_metric(metric, step_metric="epoch")
 
@@ -240,11 +241,8 @@ class BaseLogger:
         net.eval()
 
         layer_handlers = {}
+        # Set up a handler for Conv2d layers. This is fine.
         layer_handlers[torch.nn.Conv2d] = CNNLogger(self.inputs, self.targets, config=self.config, max_weight_filters=20)
-
-        if not layer_handlers:
-            wandb.log({**self.log_predictions_table(net, "Validation Predictions"), "epoch": epoch})
-            return
 
         hooks = []
         def get_activation(name, layer, handler):
@@ -253,6 +251,7 @@ class BaseLogger:
                 handler.update_layer_info(name, layer, inp.detach(), output.detach())
             return hook
 
+        # This loop correctly filters for layers we have handlers for.
         for name, layer in net.named_modules():
             if type(layer) in layer_handlers:
                 handler = layer_handlers[type(layer)]
@@ -266,14 +265,16 @@ class BaseLogger:
             h.remove()
 
         all_logs = {}
-        print("Generating Layer Visuals (GradCAM, IG, FeatureMaps)...")
+        #print("Generating Layer Visuals (GradCAM, IG, FeatureMaps)...")
         pred_targets = torch.argmax(outputs, dim=1)
         per_sample_visuals = {}
 
         for handler in layer_handlers.values():
-            global_logs, sample_logs = handler.get_visuals(net=net, pred_targets=pred_targets)
-            all_logs.update(global_logs)
-            per_sample_visuals.update(sample_logs)
+            # Only get visuals if the handler was actually used (i.e., it hooked some layers).
+            if handler.layer_info:
+                global_logs, sample_logs = handler.get_visuals(net=net, pred_targets=pred_targets)
+                all_logs.update(global_logs)
+                per_sample_visuals.update(sample_logs)
 
         print("Logging Prediction Table...")
         all_logs.update(self.log_predictions_table(net, "Validation Predictions", outputs_precomputed=outputs, extra_visuals=per_sample_visuals))

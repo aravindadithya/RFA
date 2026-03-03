@@ -4,10 +4,46 @@ import wandb
 import time
 import os
 from torch.amp import autocast
+import torch.nn.functional as F
 from utils.base_logger import BaseLogger
 scaler = torch.amp.GradScaler('cuda')
 fn_data = {}
 
+
+def check_and_log_balancedness(net, epoch):
+    """
+    Calculates and logs a "balancedness" condition between adjacent layers,
+    checking the similarity between (W_i * W_i^T) and (W_{i+1}^T * W_{i+1}).
+    This condition is relevant in the analysis of deep linear networks.
+    """
+    balance_logs = {}
+
+    # Collect all linear layers in the order of execution.
+    linear_modules = []
+    for name, module in net.named_modules():
+        # Check for linear layers (both standard and our custom RFA ones)
+        if hasattr(module, 'weight') and isinstance(module.weight, torch.nn.Parameter) and module.weight.dim() == 2:
+            linear_modules.append((name, module))
+
+    # Iterate through adjacent pairs of layers.
+    for i in range(len(linear_modules) - 1):
+        name_i, module_i = linear_modules[i]
+        name_j, module_j = linear_modules[i+1]
+
+        W_i = module_i.weight.detach()
+        W_j = module_j.weight.detach()
+
+        # Calculate the two matrices for comparison.
+        # A = W_i * W_i^T, B = W_{j}^T * W_{j}
+        A = W_i @ W_i.t()
+        B = W_j.t() @ W_j
+
+        alignment = F.cosine_similarity(A.flatten(), B.flatten(), dim=0)
+        balance_logs[f"adjacent_balance/{name_i}_vs_{name_j}"] = alignment.item()
+
+    if balance_logs:
+        balance_logs["epoch"] = epoch
+        wandb.log(balance_logs)
 
 def train_network(config, num_epochs = 5, checkpoint_interval=10):
 
@@ -50,6 +86,8 @@ def train_network(config, num_epochs = 5, checkpoint_interval=10):
         train_loss, train_acc = train_step(net, optimizer, lfn, train_loader)
         # Validation loss and accuracy are calculated after backprob for each epoch
         val_loss, val_acc, val_preds, val_targets = val_step(net, val_loader, lfn)       
+
+        check_and_log_balancedness(net, i)
 
         log_data = {
             "epoch": i,
@@ -139,7 +177,10 @@ def train_step(net, optimizer, lfn, train_loader):
         targets = labels
         
         # Optimization: Channels Last for inputs matches the model layout
-        inputs = inputs.to(device='cuda', memory_format=torch.channels_last, non_blocking=True)
+        if inputs.dim() == 4:
+            inputs = inputs.to(device='cuda', memory_format=torch.channels_last, non_blocking=True)
+        else:
+            inputs = inputs.to(device='cuda', non_blocking=True)
         target = targets.cuda(non_blocking=True)
 
         with autocast(device_type='cuda'):
@@ -184,7 +225,10 @@ def val_step(net, val_loader, lfn=None):
     for batch_idx, batch in enumerate(val_loader):
         inputs, labels = batch
         targets = labels
-        inputs = inputs.to(device='cuda', memory_format=torch.channels_last, non_blocking=True) 
+        if inputs.dim() == 4:
+            inputs = inputs.to(device='cuda', memory_format=torch.channels_last, non_blocking=True)
+        else:
+            inputs = inputs.to(device='cuda', non_blocking=True)
         target = targets.cuda(non_blocking=True)
 
         with torch.no_grad():
