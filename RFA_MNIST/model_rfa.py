@@ -8,7 +8,7 @@ class LinearRFAFunction(torch.autograd.Function):
     def forward(ctx, input, weight, bias, B):
         ctx.save_for_backward(input, weight, bias, B)
         output = input.mm(weight.t())
-        if bias is not None:
+        if bias:
             output += bias.unsqueeze(0).expand_as(output)
         return output
 
@@ -24,7 +24,7 @@ class LinearRFAFunction(torch.autograd.Function):
         if ctx.needs_input_grad[1]:
             grad_weight = grad_output.t().mm(input.to(grad_output.dtype))
             
-        if bias is not None and ctx.needs_input_grad[2]:
+        if bias and ctx.needs_input_grad[2]:
             grad_bias = grad_output.sum(0)
 
         return grad_input, grad_weight, grad_bias, None
@@ -50,7 +50,7 @@ class LinearRFA(nn.Module):
         nn.init.kaiming_uniform_(self.weight, a=math.sqrt(5))
         nn.init.kaiming_uniform_(self.B, a=math.sqrt(5))
         
-        if self.bias is not None:
+        if self.bias:
             fan_in, _ = nn.init._calculate_fan_in_and_fan_out(self.weight)
             bound = 1 / math.sqrt(fan_in) if fan_in > 0 else 0
             nn.init.uniform_(self.bias, -bound, bound)
@@ -75,7 +75,7 @@ class Net(nn.Module):
 
         self.features = nn.Sequential(
             LinearRFA(dim, k, bias=bias),
-            #Nonlinearity(),
+            Nonlinearity(),
             #LinearRFA(k, k, bias=bias),
             #Nonlinearity(),
         )

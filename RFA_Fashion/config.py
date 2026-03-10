@@ -13,16 +13,17 @@ workspaces_path= os.getenv('PYTHONPATH')
 print(f"Current Path: {workspaces_path}")
 
 def get_loaders(batch_size=1024, seed=10000):
-    path = workspaces_path + '/MNIST/data'
+    path = workspaces_path + '/FashionMNIST/data'
 
     transform = transforms.Compose([
         transforms.ToTensor(),
-        transforms.Normalize((0.1307,), (0.3081,)),
+        # FashionMNIST Mean and Std
+        transforms.Normalize((0.2860,), (0.3530,)),
         transforms.Lambda(lambda x: torch.flatten(x)) 
     ])
 
-    train_set = torchvision.datasets.MNIST(root=path, train=True, transform=transform, download=True)
-    test_set = torchvision.datasets.MNIST(root=path, train=False, transform=transform, download=True)
+    train_set = torchvision.datasets.FashionMNIST(root=path, train=True, transform=transform, download=True)
+    test_set = torchvision.datasets.FashionMNIST(root=path, train=False, transform=transform, download=True)
     
     train_size = int(0.8 * len(train_set))
     val_size = len(train_set) - train_size
@@ -46,7 +47,7 @@ def get_untrained_net(choice):
    
     return net
 
-def get_config(choice, run_id="1", project="MNIST_RFA", entity="RFA100", run_name="FC_Model1"):
+def get_config(choice, run_id="1", project="FashionMNIST_RFA", entity="RFA100", run_name="FC_Model1"):
     SEED = 1000
     # Set seeds for reproducibility across all libraries
     torch.manual_seed(SEED)

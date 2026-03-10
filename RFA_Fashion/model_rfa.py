@@ -66,7 +66,7 @@ class Nonlinearity(nn.Module):
         return F.relu(x)
 
 class Net(nn.Module):
-    def __init__(self, dim, num_classes=2):
+    def __init__(self, dim, num_classes=10):
         super(Net, self).__init__()
         bias = False
         k = 1024
@@ -75,9 +75,7 @@ class Net(nn.Module):
 
         self.features = nn.Sequential(
             LinearRFA(dim, k, bias=bias),
-            #Nonlinearity(),
-            #LinearRFA(k, k, bias=bias),
-            #Nonlinearity(),
+            Nonlinearity(),
         )
 
         self.classifier = nn.Sequential(           

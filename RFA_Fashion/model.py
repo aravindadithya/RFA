@@ -11,7 +11,7 @@ class Nonlinearity(nn.Module):
         return F.relu(x)
 
 class Net(nn.Module):
-    def __init__(self, dim, num_classes=2):
+    def __init__(self, dim, num_classes=10):
         super(Net, self).__init__()
         bias = False
         k = 1024
@@ -21,8 +21,6 @@ class Net(nn.Module):
         self.features = nn.Sequential(
             nn.Linear(dim, k, bias=bias),
             Nonlinearity(),
-            #nn.Linear(k, k, bias=bias),
-            #Nonlinearity(),
         )
 
         self.classifier = nn.Sequential(           
@@ -33,7 +31,7 @@ class Net(nn.Module):
     def _init_weights(self, m):
         if isinstance(m, nn.Linear):
             nn.init.kaiming_uniform_(m.weight, a=math.sqrt(5))
-            if m.bias:
+            if m.bias is not None:
                 fan_in, _ = nn.init._calculate_fan_in_and_fan_out(m.weight)
                 bound = 1 / math.sqrt(fan_in) if fan_in > 0 else 0
                 nn.init.uniform_(m.bias, -bound, bound)

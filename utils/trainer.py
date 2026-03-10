@@ -39,7 +39,10 @@ def check_and_log_balancedness(net, epoch):
         B = W_j.t() @ W_j
 
         alignment = F.cosine_similarity(A.flatten(), B.flatten(), dim=0)
-        balance_logs[f"adjacent_balance/{name_i}_vs_{name_j}"] = alignment.item()
+        balance_logs[f"cosine_similarity/{name_i}_vs_{name_j}"] = alignment.item()
+
+        diff_norm = torch.norm(A - B, p='fro')
+        balance_logs[f"frobenius_diff/{name_i}_vs_{name_j}"] = diff_norm.item()
 
     if balance_logs:
         balance_logs["epoch"] = epoch
@@ -47,8 +50,11 @@ def check_and_log_balancedness(net, epoch):
 
 def train_network(config, num_epochs = 5, checkpoint_interval=10):
 
-   
     torch.set_float32_matmul_precision('high')
+
+    # For full reproducibility
+    torch.backends.cudnn.deterministic = True
+    torch.backends.cudnn.benchmark = False
 
     net = config['net']
     optimizer = config['optimizer']
@@ -83,9 +89,9 @@ def train_network(config, num_epochs = 5, checkpoint_interval=10):
         print("EPOCH: ", i)
         model_saved = False
         #Train loss and accuracy are calculated on the fly during backprob for each epoch
-        train_loss, train_acc = train_step(net, optimizer, lfn, train_loader)
+        train_loss, train_acc = train_step(net, optimizer, lfn, train_loader, config)
         # Validation loss and accuracy are calculated after backprob for each epoch
-        val_loss, val_acc, val_preds, val_targets = val_step(net, val_loader, lfn)       
+        val_loss, val_acc, val_preds, val_targets = val_step(net, val_loader, config, lfn)       
 
         check_and_log_balancedness(net, i)
 
@@ -144,7 +150,7 @@ def train_network(config, num_epochs = 5, checkpoint_interval=10):
         
         net.load_state_dict(best_state_dict)
 
-    best_test_loss, best_test_acc, test_preds, test_targets = val_step(net, test_loader, lfn)
+    best_test_loss, best_test_acc, test_preds, test_targets = val_step(net, test_loader, config, lfn)
     wandb.run.summary["best_test_accuracy"] = best_test_acc
     wandb.run.summary["best_test_loss"] = best_test_loss
     
@@ -160,7 +166,7 @@ def train_network(config, num_epochs = 5, checkpoint_interval=10):
     print("FINISHED TRAINING :)")
 
 
-def train_step(net, optimizer, lfn, train_loader):
+def train_step(net, optimizer, lfn, train_loader, config):
     global scaler
     net.train()
     start = time.time()
@@ -170,6 +176,7 @@ def train_step(net, optimizer, lfn, train_loader):
     total = 0
     non_critical = os.getenv('NON_CRITICAL_LOGS', 'False').lower() in ('true', '1', 't')
 
+    memory_format = torch.channels_last if config.get('memory_format') == 'channels_last' else torch.contiguous_format
     for batch_idx, batch in enumerate(train_loader):
         # Optimization: set_to_none=True skips zeroing the memory, which is faster
         optimizer.zero_grad(set_to_none=True)
@@ -178,7 +185,7 @@ def train_step(net, optimizer, lfn, train_loader):
         
         # Optimization: Channels Last for inputs matches the model layout
         if inputs.dim() == 4:
-            inputs = inputs.to(device='cuda', memory_format=torch.channels_last, non_blocking=True)
+            inputs = inputs.to(device='cuda', memory_format=memory_format, non_blocking=True)
         else:
             inputs = inputs.to(device='cuda', non_blocking=True)
         target = targets.cuda(non_blocking=True)
@@ -212,7 +219,7 @@ def train_step(net, optimizer, lfn, train_loader):
     return train_loss, train_acc
 
 
-def val_step(net, val_loader, lfn=None):
+def val_step(net, val_loader, config, lfn=None):
     global scaler
     net.eval()
     val_loss_accum = torch.tensor(0.0, device='cuda')
@@ -222,11 +229,12 @@ def val_step(net, val_loader, lfn=None):
     all_targets = []
     val_loss = None
 
+    memory_format = torch.channels_last if config.get('memory_format') == 'channels_last' else torch.contiguous_format
     for batch_idx, batch in enumerate(val_loader):
         inputs, labels = batch
         targets = labels
         if inputs.dim() == 4:
-            inputs = inputs.to(device='cuda', memory_format=torch.channels_last, non_blocking=True)
+            inputs = inputs.to(device='cuda', memory_format=memory_format, non_blocking=True)
         else:
             inputs = inputs.to(device='cuda', non_blocking=True)
         target = targets.cuda(non_blocking=True)
