@@ -47,8 +47,10 @@ class LinearRFA(nn.Module):
         self.reset_parameters()
 
     def reset_parameters(self):
-        nn.init.kaiming_uniform_(self.weight, a=math.sqrt(5))
-        nn.init.kaiming_uniform_(self.B, a=math.sqrt(5))
+        #nn.init.kaiming_uniform_(self.weight, a=math.sqrt(5))
+        #nn.init.kaiming_uniform_(self.B, a=math.sqrt(5))
+        nn.init.xavier_uniform_(self.weight)
+        nn.init.xavier_uniform_(self.B)
         
         if self.bias:
             fan_in, _ = nn.init._calculate_fan_in_and_fan_out(self.weight)
@@ -63,7 +65,8 @@ class Nonlinearity(nn.Module):
         super(Nonlinearity, self).__init__()
 
     def forward(self, x):
-        return F.relu(x)
+        # return F.relu(x)
+        return F.tanh(x)
 
 class Net(nn.Module):
     def __init__(self, dim, num_classes=2):

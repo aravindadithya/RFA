@@ -7,7 +7,7 @@ import torchvision
 import torchvision.transforms as transforms
 import torch.nn as nn
 from torch.utils.data import DataLoader
-import model, model_rfa
+import RFA_MNIST.model1.model as model, RFA_MNIST.model1.model_rfa as model_rfa
 
 workspaces_path= os.getenv('PYTHONPATH')
 print(f"Current Path: {workspaces_path}")
@@ -60,9 +60,9 @@ def get_config(choice, run_id="1", project="MNIST_RFA", entity="RFA100", run_nam
     trainloader, valloader, testloader = get_loaders(seed=SEED)
 
     if choice == 0:
-        run_name = "FC_Model1_Relu"
+        run_name = "FC_Model1_Tanh"
     else:
-        run_name = "FC_Model1_Relu_RFA"
+        run_name = "FC_Model1_Tanh_RFA"
 
     optimizer = torch.optim.SGD(net.parameters(), lr=0.1, momentum=0.9, weight_decay=5e-4)
     epochs = 10

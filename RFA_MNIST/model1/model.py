@@ -8,7 +8,8 @@ class Nonlinearity(nn.Module):
         super(Nonlinearity, self).__init__()
 
     def forward(self, x):
-        return F.relu(x)
+        # return F.relu(x)
+        return F.tanh(x)
 
 class Net(nn.Module):
     def __init__(self, dim, num_classes=2):
@@ -32,7 +33,8 @@ class Net(nn.Module):
 
     def _init_weights(self, m):
         if isinstance(m, nn.Linear):
-            nn.init.kaiming_uniform_(m.weight, a=math.sqrt(5))
+            #nn.init.kaiming_uniform_(m.weight, a=math.sqrt(5))
+            nn.init.xavier_uniform_(m.weight)
             if m.bias:
                 fan_in, _ = nn.init._calculate_fan_in_and_fan_out(m.weight)
                 bound = 1 / math.sqrt(fan_in) if fan_in > 0 else 0
