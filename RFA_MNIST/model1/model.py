@@ -8,8 +8,8 @@ class Nonlinearity(nn.Module):
         super(Nonlinearity, self).__init__()
 
     def forward(self, x):
-        # return F.relu(x)
-        return F.tanh(x)
+        return F.relu(x)
+        #return F.tanh(x)
 
 class Net(nn.Module):
     def __init__(self, dim, num_classes=2):

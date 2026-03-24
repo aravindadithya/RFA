@@ -20,7 +20,7 @@ class Net(nn.Module):
 
         self.features = nn.Sequential(
             nn.Linear(dim, k, bias=bias),
-            Nonlinearity(),
+            #Nonlinearity(),
         )
 
         self.classifier = nn.Sequential(           

@@ -48,7 +48,7 @@ def get_untrained_net(choice):
     return net
 
 def get_config(choice, run_id="1", project="FashionMNIST_RFA", entity="RFA100", run_name="FC_Model1"):
-    SEED = 1000
+    SEED = 9765
     # Set seeds for reproducibility across all libraries
     torch.manual_seed(SEED)
     torch.cuda.manual_seed(SEED)
@@ -61,9 +61,9 @@ def get_config(choice, run_id="1", project="FashionMNIST_RFA", entity="RFA100", 
     trainloader, valloader, testloader = get_loaders(seed=SEED)
 
     if choice == 0:
-        run_name = "FC_Model1_Relu"
+        run_name = "FC_Model1"
     else:
-        run_name = "FC_Model1_Relu_RFA"
+        run_name = "FC_Model1_RFA"
 
     optimizer = torch.optim.SGD(net.parameters(), lr=0.1, momentum=0.9, weight_decay=5e-4)
     epochs = 10

@@ -75,7 +75,7 @@ class Net(nn.Module):
 
         self.features = nn.Sequential(
             LinearRFA(dim, k, bias=bias),
-            Nonlinearity(),
+            #Nonlinearity(),
         )
 
         self.classifier = nn.Sequential(           
